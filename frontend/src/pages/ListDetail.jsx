@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useContext,
+  useRef,
+  useCallback,
+} from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../api";
@@ -22,10 +28,15 @@ const ListDetail = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const searchOffsetRef = useRef(0);
+  const searchQueryRef = useRef("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [itemQty, setItemQty] = useState(1);
   const searchTimerRef = useRef(null);
   const searchWrapperRef = useRef(null);
+  const searchDropdownRef = useRef(null);
+  const searchLimit = 15;
 
   const [showInvite, setShowInvite] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
@@ -75,7 +86,9 @@ const ListDetail = () => {
     };
     const onNoteUpdated = ({ itemId, note, note_by, note_by_name }) => {
       setItems((prev) =>
-        prev.map((i) => (i.id === itemId ? { ...i, note, note_by, note_by_name } : i)),
+        prev.map((i) =>
+          i.id === itemId ? { ...i, note, note_by, note_by_name } : i,
+        ),
       );
     };
     const onItemPaid = ({ itemId, paid_by, paid_by_name, paid_at }) => {
@@ -114,28 +127,63 @@ const ListDetail = () => {
 
   const [requestMsg, setRequestMsg] = useState("");
 
+  // Fetch search results with pagination
+  const fetchSearchResults = async (query, offset, reset) => {
+    setSearchLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        limit: searchLimit,
+        offset,
+      });
+      const { data } = await api.get(`/api/search?${params.toString()}`);
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      if (reset) setSearchResults(rows);
+      else setSearchResults((prev) => [...prev, ...rows]);
+      searchOffsetRef.current = data.nextOffset ?? offset + rows.length;
+      setSearchHasMore(data.hasMore ?? false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   // Debounced product search
   const handleSearchChange = (value) => {
     setSearchQuery(value);
+    searchQueryRef.current = value;
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (value.trim().length < 2) {
       setSearchResults([]);
+      setSearchHasMore(false);
       return;
     }
-    searchTimerRef.current = setTimeout(async () => {
-      setSearchLoading(true);
-      try {
-        const { data } = await api.get(
-          `/api/search?q=${encodeURIComponent(value.trim())}`,
-        );
-        setSearchResults(Array.isArray(data) ? data.slice(0, 8) : []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setSearchLoading(false);
-      }
+    searchTimerRef.current = setTimeout(() => {
+      searchOffsetRef.current = 0;
+      fetchSearchResults(value.trim(), 0, true);
     }, 350);
   };
+
+  // Load more search results on scroll
+  const loadMoreSearch = useCallback(() => {
+    if (!searchLoading && searchHasMore) {
+      fetchSearchResults(
+        searchQueryRef.current.trim(),
+        searchOffsetRef.current,
+        false,
+      );
+    }
+  }, [searchLoading, searchHasMore]);
+
+  // Scroll handler for search dropdown infinite scroll
+  const handleSearchScroll = useCallback(() => {
+    const el = searchDropdownRef.current;
+    if (!el) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 30) {
+      loadMoreSearch();
+    }
+  }, [loadMoreSearch]);
 
   // Close search dropdown on click outside
   useEffect(() => {
@@ -254,7 +302,11 @@ const ListDetail = () => {
   };
 
   const handleDeleteList = async () => {
-    if (!confirm(`האם למחוק את הרשימה "${list?.list_name}"? פעולה זו תמחק את כל הפריטים והחברים.`)) {
+    if (
+      !confirm(
+        `האם למחוק את הרשימה "${list?.list_name}"? פעולה זו תמחק את כל הפריטים והחברים.`,
+      )
+    ) {
       return;
     }
 
@@ -341,7 +393,11 @@ const ListDetail = () => {
                   <button
                     className="sc-btn sc-btn-ghost"
                     onClick={handleDeleteList}
-                    style={{ fontSize: "0.8rem", padding: "6px 12px", color: "var(--sc-danger)" }}
+                    style={{
+                      fontSize: "0.8rem",
+                      padding: "6px 12px",
+                      color: "var(--sc-danger)",
+                    }}
                   >
                     <i className="bi bi-trash me-1"></i> מחק
                   </button>
@@ -351,7 +407,11 @@ const ListDetail = () => {
                 <button
                   className="sc-btn sc-btn-ghost"
                   onClick={handleLeaveList}
-                  style={{ fontSize: "0.8rem", padding: "6px 12px", color: "var(--sc-danger)" }}
+                  style={{
+                    fontSize: "0.8rem",
+                    padding: "6px 12px",
+                    color: "var(--sc-danger)",
+                  }}
                 >
                   <i className="bi bi-box-arrow-left me-1"></i> עזוב
                 </button>
@@ -576,6 +636,8 @@ const ListDetail = () => {
               {/* Search results dropdown */}
               {searchResults.length > 0 && (
                 <div
+                  ref={searchDropdownRef}
+                  onScroll={handleSearchScroll}
                   style={{
                     position: "absolute",
                     left: 0,
@@ -641,6 +703,30 @@ const ListDetail = () => {
                           style={{ fontSize: "0.85rem", lineHeight: 1.3 }}
                         >
                           {item.item_name}
+                          {item.popularity_points > 0 && (
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px",
+                                marginRight: "6px",
+                                padding: "2px 6px",
+                                borderRadius: "10px",
+                                background:
+                                  "linear-gradient(135deg, rgba(251,146,60,0.12), rgba(251,113,133,0.12))",
+                                color: "#f97316",
+                                fontSize: "0.65rem",
+                                fontWeight: 600,
+                                verticalAlign: "middle",
+                              }}
+                            >
+                              <i
+                                className="bi bi-fire"
+                                style={{ fontSize: "0.6rem" }}
+                              ></i>
+                              {item.popularity_points}
+                            </span>
+                          )}
                         </div>
                         {item.chain_name && (
                           <small
@@ -668,6 +754,13 @@ const ListDetail = () => {
                       )}
                     </div>
                   ))}
+                  {searchLoading && searchResults.length > 0 && (
+                    <div className="text-center py-2">
+                      <small style={{ color: "var(--sc-text-muted)" }}>
+                        טוען עוד...
+                      </small>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

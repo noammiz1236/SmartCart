@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     if (hasInitialized.current) return;
-    hasInitialized.current = true; // to check if needed
+    hasInitialized.current = true;
 
     const initAuth = async () => {
       console.log("Checking for existing session...");
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
   // Derive isLinkedChild and register socket room whenever user changes
   useEffect(() => {
     if (user) {
-      setIsLinkedChild(!!user.parent_id);
+      setIsLinkedChild(!!user.parent_id); // isLinkedChild = user.parent_id ? true : false
       socket.emit("register_user", user.id);
     } else {
       setIsLinkedChild(false);

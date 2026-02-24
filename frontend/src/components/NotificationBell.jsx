@@ -7,6 +7,7 @@ const NotificationBell = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [open, setOpen] = useState(false);
+
   const panelRef = useRef(null);
 
   useEffect(() => {

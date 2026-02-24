@@ -74,6 +74,7 @@ const generateTokens = async (userId) => {
    RETURNING id`,
     [userId],
   );
+
   const tokenId = rows[0].id;
 
   const refreshToken = jwt.sign(
@@ -477,6 +478,9 @@ app.post("/api/refresh", async (req, res) => {
       return res.status(403).json({ message: "Invalid token type" });
     }
 
+
+
+
     // בדיקה ב-DB
     const { rows } = await db.query(
       "SELECT * FROM app2.tokens WHERE id = $1 AND user_id = $2 AND type = 'refresh'",
@@ -504,7 +508,7 @@ app.post("/api/refresh", async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7d
     });
 
     // Return both tokens (mobile app needs refreshToken in body)
@@ -540,10 +544,10 @@ app.post("/api/family/create-child", authenticateToken, async (req, res) => {
     if (!firstName || !username || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    if (password.length < 6) {
+    if (password.length < 4) {
       return res
         .status(400)
-        .json({ message: "Password must be at least 6 characters" });
+        .json({ message: "Password must be at least 4 characters" });
     }
 
     // Check if requesting user is a child account (prevent grandchildren)
@@ -574,35 +578,20 @@ app.post("/api/family/create-child", authenticateToken, async (req, res) => {
 
     // Create child account
     const result = await db.query(
-      `INSERT INTO app2.users (first_name, username, password_hash, parent_id, email)
-       VALUES ($1, $2, $3, $4, NULL)
+      `INSERT INTO app2.users (first_name, username, password_hash, parent_id, created_at)
+       VALUES ($1, $2, $3, $4, NOW())
        RETURNING id, first_name, username`,
       [firstName, username, hashedPassword, req.userId],
     );
 
-    return res.status(201).json({ child: result.rows[0] });
+    return res.status(201).json({ message: "Child account created successfully" });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Error creating child account" });
   }
 });
 
-// GET /api/family/children - get parent's children
-app.get("/api/family/children", authenticateToken, async (req, res) => {
-  try {
-    const { rows } = await db.query(
-      `SELECT id, first_name, username, created_at
-       FROM app2.users
-       WHERE parent_id = $1
-       ORDER BY created_at DESC`,
-      [req.userId],
-    );
-    return res.json({ children: rows });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Error fetching children" });
-  }
-});
+
 
 // DELETE /api/family/delete-child/:childId - delete child account
 app.delete(
@@ -843,22 +832,7 @@ app.post("/api/reset-password", async (req, res) => {
   }
 });
 
-// פונקציה לניקוי טוקנים שפג תוקפם (רצה פעם ביום)
-// const cleanupExpiredTokens = async () => {
-//   try {
-//     const result = await db.query(
-//       "DELETE FROM app2.tokens WHERE expires_at < NOW() AND type IN ('refresh', 'email_verify')",
-//     );
-//     console.log(`Cleaned up ${result.rowCount} expired tokens`);
-//   } catch (err) {
-//     console.error("Error cleaning up tokens:", err);
-//   }
-// };
 
-// // ריצת ניקוי כל 24 שעות
-// setInterval(cleanupExpiredTokens, 24 * 60 * 60 * 1000);
-// // ריצת ניקוי ראשוני בהפעלה
-// cleanupExpiredTokens();
 
 // === LIST ROUTES ===
 
@@ -895,11 +869,11 @@ app.get("/api/lists/:id/items", authenticateToken, async (req, res) => {
 
     const listRes = await db.query("SELECT * FROM app.list WHERE id = $1", [
       listId,
-    ]);
+    ]); // מקבל רשימה 
     if (listRes.rows.length === 0)
       return res.status(404).json({ message: "List not found" });
 
-    const itemsRes = await db.query(
+    const itemsRes = await db.query(// מקבל מי שילם ומי שם הערה וכל המוצרים והמידע על אותה הרשימה
       `SELECT li.*, u.first_name AS paid_by_name, u2.first_name AS note_by_name
        FROM app.list_items li
        LEFT JOIN app2.users u ON li.paid_by = u.id
@@ -909,7 +883,7 @@ app.get("/api/lists/:id/items", authenticateToken, async (req, res) => {
       [listId],
     );
 
-    const membersRes = await db.query(
+    const membersRes = await db.query( // מקבל חברי רשימה ואת הגישות
       `SELECT u.id, u.first_name, u.last_name, lm.status AS role
        FROM app.list_members lm
        JOIN app2.users u ON lm.user_id = u.id
@@ -1198,92 +1172,8 @@ app.get("/api/family/children", authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/family/create-child — create child account
-app.post("/api/family/create-child", authenticateToken, async (req, res) => {
-  const { firstName, username, password } = req.body;
 
-  if (!firstName || !username || !password) {
-    return res.status(400).json({ message: "All fields are required" });
-  }
 
-  if (password.length < 4) {
-    return res
-      .status(400)
-      .json({ message: "Password must be at least 4 characters" });
-  }
-
-  try {
-    // Prevent children from creating other children
-    const requestingUser = await db.query(
-      "SELECT parent_id FROM app2.users WHERE id = $1",
-      [req.userId],
-    );
-
-    if (requestingUser.rows[0].parent_id !== null) {
-      return res
-        .status(403)
-        .json({ message: "Child accounts cannot create other children" });
-    }
-
-    const existingUser = await db.query(
-      "SELECT id FROM app2.users WHERE username = $1",
-      [username],
-    );
-
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ message: "Username already taken" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    const result = await db.query(
-      `INSERT INTO app2.users (first_name, username, password, parent_id, created_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       RETURNING id, first_name, username`,
-      [firstName, username, hashedPassword, req.userId],
-    );
-
-    const child = result.rows[0];
-
-    return res.status(201).json({
-      message: "Child account created successfully",
-      child: child,
-    });
-  } catch (err) {
-    console.error("Error creating child account:", err);
-    return res.status(500).json({ message: "Error creating child account" });
-  }
-});
-
-// DELETE /api/family/delete-child/:childId — delete child account
-app.delete(
-  "/api/family/delete-child/:childId",
-  authenticateToken,
-  async (req, res) => {
-    const { childId } = req.params;
-
-    try {
-      const child = await db.query(
-        "SELECT id FROM app2.users WHERE id = $1 AND parent_id = $2",
-        [childId, req.userId],
-      );
-
-      if (child.rows.length === 0) {
-        return res.status(403).json({ message: "Not your child account" });
-      }
-
-      await db.query("DELETE FROM app2.users WHERE id = $1", [childId]);
-
-      return res.json({
-        success: true,
-        message: "Child account deleted successfully",
-      });
-    } catch (err) {
-      console.error("Error deleting child account:", err);
-      return res.status(500).json({ message: "Error deleting child account" });
-    }
-  },
-);
 
 // GET /api/lists/:id/children — get parent's children with membership status
 app.get("/api/lists/:id/children", authenticateToken, async (req, res) => {
@@ -1821,18 +1711,7 @@ io.on("connection", (socket) => {
       console.error("Error details:", e.message);
     }
   });
-  socket.on("toggle_item", async (data) => {
-    const { itemId, listId, isChecked } = data;
-    try {
-      await db.query(
-        "UPDATE app.list_items SET is_checked = $1 WHERE id = $2",
-        [isChecked, itemId],
-      );
-      io.to(String(listId)).emit("item_status_changed", { itemId, isChecked });
-    } catch (err) {
-      console.error(err);
-    }
-  });
+
 
   socket.on("delete_item", async (data) => {
     const { itemId, listId } = data;
@@ -1994,7 +1873,7 @@ io.on("connection", (socket) => {
       );
       const userName = userRes.rows[0]?.first_name || "User";
 
-      io.to(listId).emit("item_paid_status", {
+      io.to(listId).emit("item_paid", {
         itemId,
         paidBy: userId,
         paidByName: userName,

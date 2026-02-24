@@ -6,6 +6,7 @@ const FamilySettings = () => {
   const [firstName, setFirstName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
   const [message, setMessage] = useState({ type: "", text: "" });
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +33,7 @@ const FamilySettings = () => {
         username: username.trim(),
         password,
       });
-      setMessage({ type: "success", text: `${data.child.first_name} נוצר/ה בהצלחה!` });
+      setMessage({ type: "success", text: `${data.message}` });
       setFirstName("");
       setUsername("");
       setPassword("");

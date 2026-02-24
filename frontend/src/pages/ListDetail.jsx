@@ -12,7 +12,6 @@ import socket from "../socket";
 import ListItemRow from "../components/ListItemRow";
 import InviteLinkModal from "../components/InviteLinkModal";
 import SaveAsTemplateModal from "../components/SaveAsTemplateModal";
-import BarcodeScanner from "../components/BarcodeScanner";
 
 const ListDetail = () => {
   const { listId } = useParams();
@@ -40,7 +39,6 @@ const ListDetail = () => {
 
   const [showInvite, setShowInvite] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
 
   // Comparison modal state
   const [showCompare, setShowCompare] = useState(false);
@@ -74,13 +72,7 @@ const ListDetail = () => {
     const onReceiveItem = (newItem) => {
       setItems((prev) => [newItem, ...prev]);
     };
-    const onItemStatusChanged = ({ itemId, isChecked }) => {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === itemId ? { ...i, is_checked: isChecked } : i,
-        ),
-      );
-    };
+
     const onItemDeleted = ({ itemId }) => {
       setItems((prev) => prev.filter((i) => i.id !== itemId));
     };
@@ -109,7 +101,6 @@ const ListDetail = () => {
     };
 
     socket.on("receive_item", onReceiveItem);
-    socket.on("item_status_changed", onItemStatusChanged);
     socket.on("item_deleted", onItemDeleted);
     socket.on("note_updated", onNoteUpdated);
     socket.on("item_paid", onItemPaid);
@@ -117,7 +108,6 @@ const ListDetail = () => {
 
     return () => {
       socket.off("receive_item", onReceiveItem);
-      socket.off("item_status_changed", onItemStatusChanged);
       socket.off("item_deleted", onItemDeleted);
       socket.off("note_updated", onNoteUpdated);
       socket.off("item_paid", onItemPaid);
@@ -248,15 +238,7 @@ const ListDetail = () => {
     setItemQty(1);
   };
 
-  const handleBarcodeResult = (product) => {
-    setSelectedProduct({
-      item_name: product.name,
-      item_id: product.id || null,
-      price: product.prices?.[0]?.price || null,
-      chain_name: product.prices?.[0]?.chain_name || null,
-    });
-    setShowScanner(false);
-  };
+
 
   const handleCompare = async () => {
     setShowCompare(true);
@@ -341,7 +323,7 @@ const ListDetail = () => {
     );
   }
 
-  const checkedCount = items.filter((i) => i.is_checked || i.paid_by).length;
+  const checkedCount = items.filter((i) => i.paid_by).length;
   const basketTotal = items.reduce((sum, item) => {
     return (
       sum + (parseFloat(item.price) || 0) * (parseFloat(item.quantity) || 1)
@@ -669,8 +651,8 @@ const ListDetail = () => {
                         transition: "background 0.15s ease",
                       }}
                       onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(79,70,229,0.04)")
+                      (e.currentTarget.style.background =
+                        "rgba(79,70,229,0.04)")
                       }
                       onMouseLeave={(e) =>
                         (e.currentTarget.style.background = "transparent")
@@ -810,12 +792,7 @@ const ListDetail = () => {
           onClose={() => setShowSaveTemplate(false)}
           listId={listId}
         />
-        {showScanner && (
-          <BarcodeScanner
-            onResult={handleBarcodeResult}
-            onClose={() => setShowScanner(false)}
-          />
-        )}
+
 
         {/* Price Comparison Modal */}
         {showCompare && (

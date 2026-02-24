@@ -10,10 +10,6 @@ const ListItemRow = ({ item, listId }) => {
   const navigate = useNavigate();
   const [showComments, setShowComments] = useState(false);
 
-  const handleToggle = () => {
-    socket.emit("toggle_item", { itemId: item.id, listId, isChecked: !item.is_checked });
-  };
-
   const handleDelete = () => {
     socket.emit("delete_item", { itemId: item.id, listId });
   };
@@ -35,15 +31,6 @@ const ListItemRow = ({ item, listId }) => {
       dir="rtl"
     >
       <div className="d-flex align-items-center gap-3">
-        {/* Checkbox */}
-        <input
-          type="checkbox"
-          className="form-check-input"
-          checked={isChecked}
-          onChange={handleToggle}
-          style={{ width: "20px", height: "20px", flexShrink: 0, accentColor: "var(--sc-primary)" }}
-        />
-
         {/* Item info */}
         <div className="flex-grow-1" style={{ minWidth: 0 }}>
           <div className="d-flex align-items-center gap-2 flex-wrap">

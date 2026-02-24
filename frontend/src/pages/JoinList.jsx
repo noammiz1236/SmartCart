@@ -4,7 +4,9 @@ import api from "../api";
 
 const JoinList = () => {
   const { inviteCode } = useParams();
+
   const navigate = useNavigate();
+
   const [status, setStatus] = useState("joining");
   const [message, setMessage] = useState("");
 

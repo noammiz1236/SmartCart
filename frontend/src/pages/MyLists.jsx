@@ -9,6 +9,7 @@ import ApplyTemplateModal from "../components/ApplyTemplateModal";
 const MyLists = () => {
   const { isLinkedChild } = useContext(AuthContext);
   const [lists, setLists] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);

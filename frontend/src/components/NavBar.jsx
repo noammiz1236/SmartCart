@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../api";
@@ -8,11 +8,6 @@ const NavBar = () => {
   const { user, setUser, loading, isLinkedChild } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-  const closeSidebar = () => setSidebarOpen(false);
 
   const handleLogout = async () => {
     try {
@@ -24,17 +19,35 @@ const NavBar = () => {
     }
   };
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) =>
+    path === "/"
+      ? location.pathname === "/"
+      : location.pathname.startsWith(path);
 
   const allNavLinks = [
-    { to: "/list", label: isLinkedChild ? "רשימות" : "הרשימות שלי" },
-    { to: "/store", label: "חנות" },
-    { to: "/templates", label: "תבניות", parentOnly: true },
+    { to: "/list", label: isLinkedChild ? "רשימות" : "הרשימות שלי", icon: "bi-clipboard-check" },
+    { to: "/store", label: "חנות", icon: "bi-shop" },
+    { to: "/templates", label: "תבניות", icon: "bi-files", parentOnly: true },
   ];
   const navLinks = allNavLinks.filter((link) => !link.parentOnly || !isLinkedChild);
 
+  const bottomNavItems = user
+    ? [
+        { to: "/", label: "בית", icon: "bi-house-fill" },
+        { to: "/list", label: "רשימות", icon: "bi-clipboard-check" },
+        { to: "/store", label: "חנות", icon: "bi-shop" },
+        ...(!isLinkedChild ? [{ to: "/templates", label: "תבניות", icon: "bi-files" }] : []),
+        { to: "/profile", label: "הגדרות", icon: "bi-person-circle" },
+      ]
+    : [
+        { to: "/", label: "בית", icon: "bi-house-fill" },
+        { to: "/login", label: "כניסה", icon: "bi-box-arrow-in-right" },
+        { to: "/register", label: "הרשמה", icon: "bi-person-plus" },
+      ];
+
   return (
     <>
+      {/* ── Top navbar ── */}
       <nav className="sc-navbar">
         <div className="d-flex align-items-center justify-content-between w-100">
           {/* Brand */}
@@ -42,17 +55,7 @@ const NavBar = () => {
             <i className="bi bi-cart3 me-1"></i> SmartCart
           </Link>
 
-          {/* Mobile toggle */}
-          <button
-            className="d-lg-none border-0 bg-transparent p-2"
-            onClick={toggleSidebar}
-            aria-label="Toggle navigation"
-            style={{ fontSize: "1.25rem" }}
-          >
-            <i className="bi bi-list"></i>
-          </button>
-
-          {/* Desktop nav */}
+          {/* Desktop nav links */}
           <div className="d-none d-lg-flex align-items-center gap-2 flex-grow-1 justify-content-center">
             {navLinks.map((link) => (
               <Link
@@ -94,10 +97,7 @@ const NavBar = () => {
               </>
             ) : (
               <>
-                <Link
-                  className="sc-nav-link"
-                  to="/login"
-                >
+                <Link className="sc-nav-link" to="/login">
                   התחברות
                 </Link>
                 <Link
@@ -113,64 +113,21 @@ const NavBar = () => {
         </div>
       </nav>
 
-      {/* Mobile Sidebar */}
-      <div
-        className={`sc-sidebar-overlay ${sidebarOpen ? "open" : ""}`}
-        onClick={closeSidebar}
-      />
-      <div className={`sc-sidebar ${sidebarOpen ? "open" : ""}`} dir="rtl">
-        <ul className="sc-sidebar-nav">
-          {navLinks.map((link) => (
-            <li key={link.to}>
-              <Link to={link.to} onClick={closeSidebar}>
-                {link.label}
-              </Link>
-            </li>
+      {/* ── Mobile Bottom Navigation ── */}
+      <nav className="sc-bottom-nav d-lg-none" dir="rtl" aria-label="ניווט תחתון">
+        <div className="sc-bottom-nav-inner">
+          {bottomNavItems.map((item) => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`sc-bottom-nav-item ${isActive(item.to) ? "active" : ""}`}
+            >
+              <i className={`bi ${item.icon}`}></i>
+              <span>{item.label}</span>
+            </Link>
           ))}
-
-          <li><div className="sc-divider"></div></li>
-
-          {loading ? null : user ? (
-            <>
-              <li style={{ padding: "8px 16px" }} className="d-flex align-items-center justify-content-between">
-                <span style={{ color: "var(--sc-primary)", fontWeight: 600 }}>
-                  {user.first_name}
-                </span>
-                {!isLinkedChild && <NotificationBell />}
-              </li>
-              <li>
-                <Link to="/profile" onClick={closeSidebar}>
-                  <i className="bi bi-gear me-2"></i>הגדרות
-                </Link>
-              </li>
-              <li>
-                <button
-                  onClick={() => {
-                    closeSidebar();
-                    handleLogout();
-                  }}
-                  style={{ color: "var(--sc-danger)" }}
-                >
-                  <i className="bi bi-box-arrow-right me-2"></i>התנתק
-                </button>
-              </li>
-            </>
-          ) : (
-            <>
-              <li>
-                <Link to="/login" onClick={closeSidebar}>
-                  התחברות
-                </Link>
-              </li>
-              <li>
-                <Link to="/register" onClick={closeSidebar} className="sc-sidebar-cta">
-                  הרשמה
-                </Link>
-              </li>
-            </>
-          )}
-        </ul>
-      </div>
+        </div>
+      </nav>
     </>
   );
 };

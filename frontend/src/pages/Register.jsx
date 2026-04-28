@@ -25,22 +25,10 @@ const Register = () => {
     setError("");
     const { password, confirmPassword, email, first_name, last_name } = formData;
 
-    if (password !== confirmPassword) {
-      setError("הסיסמאות אינן תואמות");
-      return;
-    }
-    if (first_name.length < 2 || last_name.length < 2) {
-      setError("שם חייב להכיל לפחות 2 תווים");
-      return;
-    }
-    if (password.length < 8) {
-      setError("הסיסמה חייבת להכיל לפחות 8 תווים");
-      return;
-    }
-    if (!validator.isEmail(email)) {
-      setError("כתובת אימייל לא תקינה");
-      return;
-    }
+    if (first_name.length < 2 || last_name.length < 2) { setError("שם חייב להכיל לפחות 2 תווים"); return; }
+    if (!validator.isEmail(email)) { setError("כתובת אימייל לא תקינה"); return; }
+    if (password.length < 8)       { setError("הסיסמה חייבת להכיל לפחות 8 תווים"); return; }
+    if (password !== confirmPassword) { setError("הסיסמאות אינן תואמות"); return; }
 
     setLoading(true);
     try {
@@ -54,62 +42,132 @@ const Register = () => {
   };
 
   return (
-    <div className="sc-auth-page" dir="rtl">
-      <div className="sc-auth-card page-fade-in">
-        <div className="text-center mb-4">
-          <Link to="/" style={{ textDecoration: "none" }}>
-            <span className="sc-text-gradient" style={{ fontSize: "2rem", fontWeight: 800 }}>
-              <i className="bi bi-cart3"></i> SmartCart
-            </span>
-          </Link>
+    <div className="sc-auth-page page-fade-in" dir="rtl">
+      <div className="sc-auth-card">
+
+        {/* Gradient header */}
+        <div className="sc-auth-header">
+          <h2>SmartCart</h2>
+          <p>יצירת חשבון חדש</p>
         </div>
 
-        <h2>צור חשבון חדש</h2>
-        <p className="sc-auth-subtitle">הצטרף ל-SmartCart ונהל קניות בחכמה</p>
-
-        {error && (
-          <div className="alert alert-danger py-2 text-center" style={{ borderRadius: "10px", fontSize: "0.9rem" }}>
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="row g-3 mb-3">
-            <div className="col-6">
-              <label className="form-label fw-semibold" style={{ fontSize: "0.9rem" }}>שם פרטי</label>
-              <input type="text" className="form-control sc-input" name="first_name" placeholder="ישראל" value={formData.first_name} onChange={handleChange} required />
+        {/* Form body */}
+        <div className="sc-auth-body">
+          {error && (
+            <div className="alert alert-danger py-2 text-center mb-3" style={{ borderRadius: "10px", fontSize: "0.88rem" }}>
+              {error}
             </div>
-            <div className="col-6">
-              <label className="form-label fw-semibold" style={{ fontSize: "0.9rem" }}>שם משפחה</label>
-              <input type="text" className="form-control sc-input" name="last_name" placeholder="ישראלי" value={formData.last_name} onChange={handleChange} required />
+          )}
+
+          <form onSubmit={handleSubmit}>
+            {/* Full name */}
+            <div className="mb-3">
+              <label className="form-label">שם מלא</label>
+              <div className="position-relative">
+                <span className="sc-input-icon-left">
+                  <i className="bi bi-person"></i>
+                </span>
+                <input
+                  type="text"
+                  className="form-control sc-input sc-input-with-icon"
+                  name="first_name"
+                  placeholder="ישראל ישראלי"
+                  value={formData.first_name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="mb-3">
-            <label className="form-label fw-semibold" style={{ fontSize: "0.9rem" }}>אימייל</label>
-            <input type="email" className="form-control sc-input" name="email" placeholder="name@example.com" value={formData.email} onChange={handleChange} required dir="ltr" />
-          </div>
+            {/* Email */}
+            <div className="mb-3">
+              <label className="form-label">דואר אלקטרוני</label>
+              <div className="position-relative">
+                <span className="sc-input-icon-left">
+                  <i className="bi bi-envelope"></i>
+                </span>
+                <input
+                  type="email"
+                  className="form-control sc-input sc-input-with-icon"
+                  name="email"
+                  placeholder="you@example.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  dir="ltr"
+                />
+              </div>
+            </div>
 
-          <div className="mb-3">
-            <label className="form-label fw-semibold" style={{ fontSize: "0.9rem" }}>סיסמה</label>
-            <input type="password" className="form-control sc-input" name="password" placeholder="לפחות 8 תווים" value={formData.password} onChange={handleChange} required />
-          </div>
+            {/* Password */}
+            <div className="mb-3">
+              <label className="form-label">סיסמה</label>
+              <div className="position-relative">
+                <span className="sc-input-icon-left">
+                  <i className="bi bi-lock"></i>
+                </span>
+                <input
+                  type="password"
+                  className="form-control sc-input sc-input-with-icon"
+                  name="password"
+                  placeholder="לפחות 8 תווים"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
 
-          <div className="mb-4">
-            <label className="form-label fw-semibold" style={{ fontSize: "0.9rem" }}>אימות סיסמה</label>
-            <input type="password" className="form-control sc-input" name="confirmPassword" placeholder="הקלד שוב את הסיסמה" value={formData.confirmPassword} onChange={handleChange} required />
-          </div>
+            {/* Confirm password */}
+            <div className="mb-3">
+              <label className="form-label">אימות סיסמה</label>
+              <div className="position-relative">
+                <span className="sc-input-icon-left">
+                  <i className="bi bi-lock-fill"></i>
+                </span>
+                <input
+                  type="password"
+                  className="form-control sc-input sc-input-with-icon"
+                  name="confirmPassword"
+                  placeholder="חזור על הסיסמה"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
 
-          <button type="submit" className="sc-btn sc-btn-primary w-100" disabled={loading} style={{ padding: "12px", fontSize: "1rem" }}>
-            {loading && <span className="spinner-border spinner-border-sm me-2"></span>}
-            {loading ? "נרשם..." : "הרשמה"}
-          </button>
-        </form>
+            {/* Terms */}
+            <div className="d-flex align-items-start gap-2 mb-4 mt-1">
+              <div
+                style={{
+                  width: 20, height: 20,
+                  borderRadius: 6,
+                  background: "var(--sc-primary)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0, marginTop: 2,
+                }}
+              >
+                <i className="bi bi-check" style={{ color: "white", fontSize: "0.75rem" }}></i>
+              </div>
+              <span style={{ fontSize: "0.8rem", color: "var(--sc-text-secondary)", lineHeight: 1.5 }}>
+                אני מסכים לתנאי השימוש ולמדיניות הפרטיות
+              </span>
+            </div>
 
-        <p className="text-center mt-4 mb-0" style={{ fontSize: "0.9rem", color: "var(--sc-text-muted)" }}>
-          כבר יש לך חשבון?{" "}
-          <Link to="/login" style={{ color: "var(--sc-primary)", fontWeight: 600 }}>התחבר כאן</Link>
-        </p>
+            <button type="submit" className="sc-btn sc-btn-primary w-100" disabled={loading}>
+              {loading && <span className="spinner-border spinner-border-sm me-2"></span>}
+              {loading ? "נרשם..." : "יצירת חשבון"}
+            </button>
+          </form>
+
+          <p className="text-center mt-3 mb-0" style={{ fontSize: "0.88rem", color: "var(--sc-text-muted)" }}>
+            התחבר לכבר יש לך חשבון?{" "}
+            <Link to="/login" style={{ color: "var(--sc-primary)", fontWeight: 600, textDecoration: "none" }}>
+              כניסה
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

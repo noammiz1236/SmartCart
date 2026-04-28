@@ -24,6 +24,7 @@ function App() {
       <BrowserRouter>
         <NavBar />
 
+        <main className="sc-main-content">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -52,6 +53,7 @@ function App() {
           <Route path="/templates" element={<PrivateRoute parentOnly><Templates /></PrivateRoute>} />
           <Route path="/family" element={<PrivateRoute parentOnly><FamilySettings /></PrivateRoute>} />
         </Routes>
+        </main>
       </BrowserRouter>
     </AuthProvider>
   );

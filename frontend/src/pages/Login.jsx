@@ -16,32 +16,20 @@ const Login = () => {
     e.preventDefault();
     setError("");
 
-    if (!loginId.trim()) {
-      setError("יש להזין אימייל או שם משתמש");
-      return;
-    }
-    if (!password) {
-      setError("יש להזין סיסמה");
-      return;
-    }
-    if (password.length < 8) {
-      setError("סיסמה שגויה");
-      return;
-    }
+    if (!loginId.trim()) { setError("יש להזין אימייל או שם משתמש"); return; }
+    if (!password)        { setError("יש להזין סיסמה"); return; }
+    if (password.length < 8) { setError("סיסמה שגויה"); return; }
 
     setLoading(true);
     try {
       const isEmail = loginId.includes("@");
-      const body = isEmail
-        ? { email: loginId, password }
-        : { username: loginId, password };
+      const body = isEmail ? { email: loginId, password } : { username: loginId, password };
       const res = await api.post("/api/login", body);
       setAccessToken(res.data.accessToken);
       setUser(res.data.user);
       navigate("/");
     } catch (err) {
-      const message = err.response?.data?.message;
-      setError(message || "ההתחברות נכשלה. נסה שוב.");
+      setError(err.response?.data?.message || "ההתחברות נכשלה. נסה שוב.");
     } finally {
       setLoading(false);
     }
@@ -49,90 +37,78 @@ const Login = () => {
 
   return (
     <div className="sc-auth-page page-fade-in" dir="rtl">
-      <div className="sc-auth-card" style={{ position: "relative", overflow: "hidden", paddingTop: 0 }}>
+      <div className="sc-auth-card">
 
-        {/* Top accent bar */}
-        <div style={{
-          height: 5,
-          background: "var(--sc-gradient)",
-          borderRadius: "var(--sc-radius-lg) var(--sc-radius-lg) 0 0",
-          marginBottom: "2rem",
-        }} />
-
-        <div style={{ padding: "0 2.5rem 2.5rem" }}>
-          {/* Logo */}
-          <div className="text-center mb-4">
-            <Link to="/" style={{ textDecoration: "none" }}>
-              <span className="sc-text-gradient" style={{ fontSize: "1.9rem", fontWeight: 800 }}>
-                <i className="bi bi-cart3 me-1"></i>SmartCart
-              </span>
-            </Link>
+        {/* Gradient header */}
+        <div className="sc-auth-header">
+          <div className="sc-auth-icon">
+            <i className="bi bi-cart3"></i>
           </div>
+          <h2>SmartCart</h2>
+          <p>ברוכים השבים!</p>
+        </div>
 
-          <h2 style={{ textAlign: "center", fontWeight: 800, marginBottom: "0.25rem" }}>
-            ברוכים השבים
-          </h2>
-          <p className="sc-auth-subtitle">התחבר כדי לנהל את הרשימות שלך</p>
-
+        {/* Form body */}
+        <div className="sc-auth-body">
           {error && (
-            <div
-              className="alert alert-danger py-2 text-center"
-              style={{ borderRadius: "10px", fontSize: "0.9rem" }}
-            >
+            <div className="alert alert-danger py-2 text-center mb-3" style={{ borderRadius: "10px", fontSize: "0.88rem" }}>
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
+            {/* Email / Username */}
             <div className="mb-3">
-              <label className="form-label fw-semibold" style={{ fontSize: "0.9rem" }}>
-                אימייל או שם משתמש
-              </label>
-              <input
-                type="text"
-                className="form-control sc-input"
-                placeholder="אימייל או שם משתמש"
-                value={loginId}
-                onChange={(e) => setLoginId(e.target.value)}
-                required
-                dir="ltr"
-              />
+              <label className="form-label">דואר אלקטרוני</label>
+              <div className="position-relative">
+                <span className="sc-input-icon-left">
+                  <i className="bi bi-envelope"></i>
+                </span>
+                <input
+                  type="text"
+                  className="form-control sc-input sc-input-with-icon"
+                  placeholder="you@example.com"
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  required
+                  dir="ltr"
+                />
+              </div>
             </div>
 
+            {/* Password */}
             <div className="mb-4">
-              <div className="d-flex justify-content-between align-items-center">
-                <label className="form-label fw-semibold mb-0" style={{ fontSize: "0.9rem" }}>
-                  סיסמה
-                </label>
-                <Link to="/forgot-password" style={{ fontSize: "0.8rem", color: "var(--sc-primary)" }}>
-                  שכחת סיסמה?
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <label className="form-label mb-0">סיסמה</label>
+                <Link to="/forgot-password" style={{ fontSize: "0.8rem", color: "var(--sc-primary)", fontWeight: 600, textDecoration: "none" }}>
+                  לשכוח סיסמה?
                 </Link>
               </div>
-              <input
-                type="password"
-                className="form-control sc-input mt-1"
-                placeholder="הכנס סיסמה"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="position-relative">
+                <span className="sc-input-icon-left">
+                  <i className="bi bi-lock"></i>
+                </span>
+                <input
+                  type="password"
+                  className="form-control sc-input sc-input-with-icon"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
             </div>
 
-            <button
-              type="submit"
-              className="sc-btn sc-btn-primary w-100"
-              disabled={loading}
-              style={{ padding: "12px", fontSize: "1rem" }}
-            >
+            <button type="submit" className="sc-btn sc-btn-primary w-100" disabled={loading}>
               {loading && <span className="spinner-border spinner-border-sm me-2"></span>}
-              {loading ? "מתחבר..." : "התחברות"}
+              {loading ? "מתחבר..." : "כניסה לחשבון"}
             </button>
           </form>
 
-          <p className="text-center mt-4 mb-0" style={{ fontSize: "0.9rem", color: "var(--sc-text-muted)" }}>
-            אין לך חשבון?{" "}
-            <Link to="/register" style={{ color: "var(--sc-primary)", fontWeight: 600 }}>
-              הרשם כאן
+          <p className="text-center mt-3 mb-0" style={{ fontSize: "0.88rem", color: "var(--sc-text-muted)" }}>
+            הירשם?{" "}
+            <Link to="/register" style={{ color: "var(--sc-primary)", fontWeight: 600, textDecoration: "none" }}>
+              אין לך חשבון
             </Link>
           </p>
         </div>

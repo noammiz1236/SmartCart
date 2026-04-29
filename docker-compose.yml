@@ -4,14 +4,14 @@ services:
     container_name: smartcart-db
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "15432:5432"
     environment:
       POSTGRES_USER: smartcart
       POSTGRES_PASSWORD: smartcart123
       POSTGRES_DB: smartcart
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./server/database_schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./server/database_schema.sql:/docker-entrypoint-initdb.d/
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U smartcart"]
       interval: 10s
@@ -23,15 +23,44 @@ services:
     container_name: smartcart-pgadmin
     restart: unless-stopped
     ports:
-      - "5050:80"
+      - "8080:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_EMAIL: admin@smartcart.co.il
       PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_SERVER_MODE: "False"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
       - postgres
+
+  server:
+    build: ./server
+    container_name: smartcart-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./server/.env
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  front:
+    build: ./frontend
+    container_name: smartcart_front
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    env_file:
+      - ./frontend/.env
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+    - server
 
 volumes:
   postgres_data:

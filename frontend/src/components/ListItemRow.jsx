@@ -6,12 +6,12 @@ import ItemNoteEditor from "./ItemNoteEditor";
 import ItemComments from "./ItemComments";
 
 const ListItemRow = ({ item, listId }) => {
-  const { user } = useContext(AuthContext);
+  const { user, isLinkedChild } = useContext(AuthContext);
   const navigate = useNavigate();
   const [showComments, setShowComments] = useState(false);
 
   const handleDelete = () => {
-    socket.emit("delete_item", { itemId: item.id, listId });
+    socket.emit("delete_item", { itemId: item.id, listId, userId: user.id });
   };
 
   const handleMarkPaid = () => {
@@ -45,9 +45,6 @@ const ListItemRow = ({ item, listId }) => {
               onClick={() => item.product_id && navigate(`/product/${item.product_id}`)}
             >
               {item.itemname}
-              {item.product_id && (
-                <i className="bi bi-box-arrow-up-right ms-1" style={{ fontSize: "0.7rem", opacity: 0.5 }}></i>
-              )}
             </span>
             {item.quantity > 1 && (
               <span className="sc-badge sc-badge-muted">x{item.quantity}</span>
@@ -96,13 +93,15 @@ const ListItemRow = ({ item, listId }) => {
           >
             <i className="bi bi-chat-dots"></i>
           </button>
-          <button
-            className="sc-icon-btn sc-icon-btn-danger"
-            onClick={handleDelete}
-            title="מחק"
-          >
-            <i className="bi bi-trash"></i>
-          </button>
+          {!isLinkedChild && (
+            <button
+              className="sc-icon-btn sc-icon-btn-danger"
+              onClick={handleDelete}
+              title="מחק"
+            >
+              <i className="bi bi-trash"></i>
+            </button>
+          )}
         </div>
       </div>
 

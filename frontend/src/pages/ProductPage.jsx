@@ -212,7 +212,9 @@ const ProductPage = () => {
               {lists.length === 0 ? (
                 <div className="text-center py-4" style={{ color: "var(--sc-text-muted)" }}>
                   <i className="bi bi-list-check" style={{ fontSize: "2rem", opacity: 0.4 }}></i>
-                  <p className="mt-2 mb-0">אין רשימות. צור רשימה חדשה תחילה.</p>
+                  <p className="mt-2 mb-0">
+                    {isLinkedChild ? "אין רשימות זמינות" : "אין רשימות. צור רשימה חדשה תחילה."}
+                  </p>
                 </div>
               ) : (
                 <div className="d-flex flex-column gap-2">

@@ -23,11 +23,11 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    const { password, confirmPassword, email, first_name, last_name } = formData;
+    const { password, confirmPassword, email, first_name } = formData;
 
-    if (first_name.length < 2 || last_name.length < 2) { setError("שם חייב להכיל לפחות 2 תווים"); return; }
+    if (first_name.length < 2) { setError("שם חייב להכיל לפחות 2 תווים"); return; }
     if (!validator.isEmail(email)) { setError("כתובת אימייל לא תקינה"); return; }
-    if (password.length < 8)       { setError("הסיסמה חייבת להכיל לפחות 8 תווים"); return; }
+    if (password.length < 8) { setError("הסיסמה חייבת להכיל לפחות 8 תווים"); return; }
     if (password !== confirmPassword) { setError("הסיסמאות אינן תואמות"); return; }
 
     setLoading(true);

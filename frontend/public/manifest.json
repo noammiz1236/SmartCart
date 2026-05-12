@@ -1,0 +1,19 @@
+{
+  "name": "SmartCart - השוואת מחירים",
+  "short_name": "SmartCart",
+  "description": "אפליקציית השוואת מחירים ורשימת קניות משפחתית",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#2563eb",
+  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "he-IL",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

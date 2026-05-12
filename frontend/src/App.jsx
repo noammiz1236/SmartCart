@@ -15,7 +15,6 @@ import ResetPassword from "./pages/ResetPassword";
 import MyLists from "./pages/MyLists";
 import ListDetail from "./pages/ListDetail";
 import JoinList from "./pages/JoinList";
-import Templates from "./pages/Templates";
 import FamilySettings from "./pages/FamilySettings";
 
 function App() {
@@ -50,7 +49,6 @@ function App() {
           <Route path="/list" element={<PrivateRoute><MyLists /></PrivateRoute>} />
           <Route path="/list/:listId" element={<PrivateRoute><ListDetail /></PrivateRoute>} />
           <Route path="/join/:inviteCode" element={<PrivateRoute><JoinList /></PrivateRoute>} />
-          <Route path="/templates" element={<PrivateRoute parentOnly><Templates /></PrivateRoute>} />
           <Route path="/family" element={<PrivateRoute parentOnly><FamilySettings /></PrivateRoute>} />
         </Routes>
         </main>

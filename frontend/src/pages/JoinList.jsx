@@ -14,6 +14,10 @@ const JoinList = () => {
     const joinList = async () => {
       try {
         const { data } = await api.post(`/api/join/${inviteCode}`);
+        if (data.alreadyMember) {
+          navigate(`/list/${data.listId}`, { replace: true });
+          return;
+        }
         setStatus("success");
         setMessage(`הצטרפת בהצלחה לרשימה "${data.listName}"`);
         setTimeout(() => navigate(`/list/${data.listId}`), 2000);

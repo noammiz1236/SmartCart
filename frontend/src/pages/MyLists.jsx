@@ -4,7 +4,6 @@ import { AuthContext } from "../context/AuthContext";
 import api from "../api";
 import socket from "../socket";
 import CreateListModal from "../components/CreateListModal";
-import ApplyTemplateModal from "../components/ApplyTemplateModal";
 
 const MyLists = () => {
   const { isLinkedChild } = useContext(AuthContext);
@@ -12,7 +11,6 @@ const MyLists = () => {
 
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [showTemplate, setShowTemplate] = useState(false);
   const navigate = useNavigate();
 
   // Kid request history
@@ -113,12 +111,6 @@ const MyLists = () => {
               >
                 <i className="bi bi-plus-lg"></i> רשימה חדשה
               </button>
-              <button
-                className="sc-btn sc-btn-ghost"
-                onClick={() => setShowTemplate(true)}
-              >
-                <i className="bi bi-files"></i> מתבנית
-              </button>
             </div>
           )}
         </div>
@@ -206,9 +198,9 @@ const MyLists = () => {
                         </h5>
                         {!isLinkedChild && (
                           <span
-                            className={`sc-badge ${list.role === "admin" ? "sc-badge-primary" : "sc-badge-muted"}`}
+                            className={`sc-badge ${list.role === "admin" ? "sc-badge-primary" : isLinkedChild ? "sc-badge-warning" : "sc-badge-muted"}`}
                           >
-                            {list.role === "admin" ? "מנהל" : "חבר"}
+                            {list.role === "admin" ? "מנהל" : isLinkedChild ? "ילד" : "חבר"}
                           </span>
                         )}
                       </div>
@@ -318,18 +310,11 @@ const MyLists = () => {
         )}
 
         {!isLinkedChild && (
-          <>
-            <CreateListModal
-              show={showCreate}
-              onClose={() => setShowCreate(false)}
-              onCreated={handleCreated}
-            />
-            <ApplyTemplateModal
-              show={showTemplate}
-              onClose={() => setShowTemplate(false)}
-              onApplied={handleCreated}
-            />
-          </>
+          <CreateListModal
+            show={showCreate}
+            onClose={() => setShowCreate(false)}
+            onCreated={handleCreated}
+          />
         )}
       </div>
     </div>

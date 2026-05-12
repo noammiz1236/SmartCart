@@ -24,19 +24,16 @@ const NavBar = () => {
       ? location.pathname === "/"
       : location.pathname.startsWith(path);
 
-  const allNavLinks = [
+  const navLinks = [
     { to: "/list", label: isLinkedChild ? "רשימות" : "הרשימות שלי", icon: "bi-clipboard-check" },
     { to: "/store", label: "חנות", icon: "bi-shop" },
-    { to: "/templates", label: "תבניות", icon: "bi-files", parentOnly: true },
   ];
-  const navLinks = allNavLinks.filter((link) => !link.parentOnly || !isLinkedChild);
 
   const bottomNavItems = user
     ? [
         { to: "/", label: "בית", icon: "bi-house-fill" },
         { to: "/list", label: "רשימות", icon: "bi-clipboard-check" },
         { to: "/store", label: "חנות", icon: "bi-shop" },
-        ...(!isLinkedChild ? [{ to: "/templates", label: "תבניות", icon: "bi-files" }] : []),
         { to: "/profile", label: "הגדרות", icon: "bi-person-circle" },
       ]
     : [
@@ -67,6 +64,13 @@ const NavBar = () => {
               </Link>
             ))}
           </div>
+
+          {/* Mobile-only notification bell (parents only) */}
+          {user && !isLinkedChild && (
+            <div className="d-flex d-lg-none align-items-center">
+              <NotificationBell />
+            </div>
+          )}
 
           {/* Desktop user section */}
           <div className="d-none d-lg-flex align-items-center gap-2">

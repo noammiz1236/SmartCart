@@ -11,7 +11,7 @@ import api from "../api";
 import socket from "../socket";
 import ListItemRow from "../components/ListItemRow";
 import InviteLinkModal from "../components/InviteLinkModal";
-import SaveAsTemplateModal from "../components/SaveAsTemplateModal";
+import ManageListModal from "../components/ManageListModal";
 
 const ListDetail = () => {
   const { listId } = useParams();
@@ -38,7 +38,7 @@ const ListDetail = () => {
   const searchLimit = 15;
 
   const [showInvite, setShowInvite] = useState(false);
-  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [showManage, setShowManage] = useState(false);
 
   // Comparison modal state
   const [showCompare, setShowCompare] = useState(false);
@@ -307,7 +307,7 @@ const ListDetail = () => {
     }
 
     try {
-      await api.post(`/api/lists/${listId}/leave`);
+      await api.delete(`/api/lists/${listId}/leave`);
       navigate("/list");
     } catch (err) {
       console.error("Error leaving list:", err);
@@ -374,6 +374,13 @@ const ListDetail = () => {
                   </button>
                   <button
                     className="sc-btn sc-btn-ghost"
+                    onClick={() => setShowManage(true)}
+                    style={{ fontSize: "0.8rem", padding: "6px 12px" }}
+                  >
+                    <i className="bi bi-gear me-1"></i> ניהול
+                  </button>
+                  <button
+                    className="sc-btn sc-btn-ghost"
                     onClick={handleDeleteList}
                     style={{
                       fontSize: "0.8rem",
@@ -398,13 +405,6 @@ const ListDetail = () => {
                   <i className="bi bi-box-arrow-left me-1"></i> עזוב
                 </button>
               )}
-              <button
-                className="sc-btn sc-btn-ghost"
-                onClick={() => setShowSaveTemplate(true)}
-                style={{ fontSize: "0.8rem", padding: "6px 12px" }}
-              >
-                <i className="bi bi-bookmark me-1"></i> תבנית
-              </button>
             </div>
           )}
         </div>
@@ -596,14 +596,6 @@ const ListDetail = () => {
                     style={{ fontSize: "0.9rem", paddingRight: "36px" }}
                   />
                 </div>
-                <button
-                  type="button"
-                  className="sc-icon-btn"
-                  onClick={() => setShowScanner(true)}
-                  title="סרוק ברקוד"
-                >
-                  <i className="bi bi-upc-scan"></i>
-                </button>
               </div>
 
               {/* Search loading */}
@@ -787,9 +779,11 @@ const ListDetail = () => {
           onClose={() => setShowInvite(false)}
           listId={listId}
         />
-        <SaveAsTemplateModal
-          show={showSaveTemplate}
-          onClose={() => setShowSaveTemplate(false)}
+        <ManageListModal
+          show={showManage}
+          onClose={() => setShowManage(false)}
+          members={members}
+          onMembersChange={setMembers}
           listId={listId}
         />
 

@@ -155,7 +155,6 @@ const Home = () => {
   const allQuickActions = [
     { to: "/list",      icon: "bi-clipboard-check", label: "הרשימות שלי", color: "#2563eb" },
     { to: "/store",     icon: "bi-shop",            label: "חנות",         color: "#0ea5e9" },
-    { to: "/templates", icon: "bi-files",           label: "תבניות",       color: "#7c3aed", parentOnly: true },
     { to: "/profile",   icon: "bi-gear",            label: "הגדרות",       color: "#64748b" },
   ];
 
@@ -183,23 +182,29 @@ const Home = () => {
                   : "מה נקנה היום?"}
               </p>
             </div>
-            {!isLinkedChild && (
-              <Link
-                to="/list"
-                className="sc-btn"
-                style={{
-                  background: "white",
-                  color: "var(--sc-primary)",
-                  fontWeight: 700,
-                  padding: "9px 22px",
-                  fontSize: "0.9rem",
-                  borderRadius: "8px",
-                  flexShrink: 0,
-                }}
-              >
-                <i className="bi bi-plus-lg me-1"></i> רשימה חדשה
-              </Link>
-            )}
+            <Link
+              to="/list"
+              className="sc-btn"
+              style={{
+                background: "white",
+                color: "var(--sc-primary)",
+                fontWeight: 700,
+                padding: "9px 22px",
+                fontSize: "0.9rem",
+                borderRadius: "8px",
+                flexShrink: 0,
+              }}
+            >
+              {isLinkedChild ? (
+                <>
+                  <i className="bi bi-clipboard-check me-1"></i> הרשימות שלי
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-plus-lg me-1"></i> רשימה חדשה
+                </>
+              )}
+            </Link>
           </div>
         </div>
 
@@ -272,10 +277,16 @@ const Home = () => {
                           className={`sc-badge ${
                             list.role === "admin"
                               ? "sc-badge-primary"
-                              : "sc-badge-muted"
+                              : isLinkedChild
+                                ? "sc-badge-warning"
+                                : "sc-badge-muted"
                           }`}
                         >
-                          {list.role === "admin" ? "מנהל" : "חבר"}
+                          {list.role === "admin"
+                            ? "מנהל"
+                            : isLinkedChild
+                              ? "ילד"
+                              : "חבר"}
                         </span>
                       </div>
                       <div

@@ -3,7 +3,7 @@ import { AuthContext } from "../context/AuthContext";
 import socket from "../socket";
 
 const ItemNoteEditor = ({ item, listId }) => {
-  const { user } = useContext(AuthContext);
+  const { user, isLinkedChild } = useContext(AuthContext);
   const [editing, setEditing] = useState(false);
   const [note, setNote] = useState(item.note || "");
 
@@ -11,6 +11,18 @@ const ItemNoteEditor = ({ item, listId }) => {
     socket.emit("update_note", { itemId: item.id, listId, note, userId: user.id });
     setEditing(false);
   };
+
+  if (isLinkedChild) {
+    if (!item.note) return null;
+    return (
+      <small className="text-muted d-block fst-italic">
+        {item.note}
+        {item.note_by_name && (
+          <span style={{ fontSize: "0.75rem", opacity: 0.7 }}> — {item.note_by_name}</span>
+        )}
+      </small>
+    );
+  }
 
   if (editing) {
     return (

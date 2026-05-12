@@ -214,11 +214,11 @@ app.get("/api/products/:id", async (req, res) => {
 // ROUTES
 // REGISTER
 app.post("/api/register", async (req, res) => {
-  const { first_name, last_name, email, password, confirmPassword } = req.body;
+  const { first_name, email, password, confirmPassword } = req.body;
 
   try {
     // בדיקות בסיסיות
-    if (!first_name || !last_name || !email || !password || !confirmPassword) {
+    if (!first_name || !email || !password || !confirmPassword) {
       return res.status(400).json({ message: "All fields are required" });
     }
     if (!validator.isEmail(email))
@@ -242,7 +242,7 @@ app.post("/api/register", async (req, res) => {
     // יצירת token אימות במערכת ושמירת הנתונים בטבלה
     const tokenData = JSON.stringify({
       first_name,
-      last_name,
+
       email,
       password_hash: hashedPassword,
     });
@@ -493,7 +493,7 @@ app.post("/api/refresh", async (req, res) => {
         "DELETE FROM app2.tokens WHERE user_id = $1 AND type = 'refresh'",
         [payload.sub],
       );
-      return res.status(403).json({ message: "Token reuse detected" });
+      return res.status(403);
     }
 
     // מחיקת הטוקן הנוכחי מה-DB
@@ -840,7 +840,9 @@ app.post("/api/reset-password", async (req, res) => {
 app.get("/api/lists", authenticateToken, async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT l.id, l.list_name, l.status, l.created_at, l.updated_at, lm.status AS role
+      `SELECT l.id, l.list_name, l.status, l.created_at, l.updated_at, lm.status AS role,
+              (SELECT COUNT(*)::int FROM app.list_items   li WHERE li.listid  = l.id) AS item_count,
+              (SELECT COUNT(*)::int FROM app.list_members mm WHERE mm.list_id = l.id) AS member_count
        FROM app.list l
        JOIN app.list_members lm ON lm.list_id = l.id
        WHERE lm.user_id = $1
@@ -884,7 +886,7 @@ app.get("/api/lists/:id/items", authenticateToken, async (req, res) => {
     );
 
     const membersRes = await db.query( // מקבל חברי רשימה ואת הגישות
-      `SELECT u.id, u.first_name, u.last_name, lm.status AS role
+      `SELECT u.id, u.first_name, u.last_name, u.parent_id, lm.status AS role
        FROM app.list_members lm
        JOIN app2.users u ON lm.user_id = u.id
        WHERE lm.list_id = $1`,
@@ -935,7 +937,7 @@ app.delete("/api/lists/:id", authenticateToken, async (req, res) => {
 });
 
 // POST /api/lists/:id/leave — leave a list (members only, not admin)
-app.post("/api/lists/:id/leave", authenticateToken, async (req, res) => {
+app.delete("/api/lists/:id/leave", authenticateToken, async (req, res) => {
   const listId = req.params.id;
 
   try {
@@ -969,6 +971,133 @@ app.post("/api/lists/:id/leave", authenticateToken, async (req, res) => {
   }
 });
 
+// PUT /api/lists/:id/members/:userId/role — change a member's role (admin only)
+app.put(
+  "/api/lists/:id/members/:userId/role",
+  authenticateToken,
+  async (req, res) => {
+    const listId = req.params.id;
+    const targetUserId = parseInt(req.params.userId, 10);
+    const { role } = req.body;
+
+    if (role !== "admin" && role !== "member") {
+      return res.status(400).json({ message: "תפקיד לא חוקי" });
+    }
+
+    try {
+      const adminCheck = await db.query(
+        "SELECT status FROM app.list_members WHERE list_id = $1 AND user_id = $2",
+        [listId, req.userId],
+      );
+      if (
+        adminCheck.rows.length === 0 ||
+        adminCheck.rows[0].status !== "admin"
+      ) {
+        return res.status(403).json({ message: "רק מנהל יכול לשנות תפקידים" });
+      }
+
+      const targetRes = await db.query(
+        `SELECT lm.status AS role, u.parent_id
+           FROM app.list_members lm
+           JOIN app2.users u ON u.id = lm.user_id
+          WHERE lm.list_id = $1 AND lm.user_id = $2`,
+        [listId, targetUserId],
+      );
+      if (targetRes.rows.length === 0) {
+        return res.status(404).json({ message: "המשתמש אינו חבר ברשימה" });
+      }
+      const target = targetRes.rows[0];
+
+      if (target.parent_id !== null) {
+        return res
+          .status(403)
+          .json({ message: "לא ניתן לשנות את תפקידו של ילד" });
+      }
+
+      if (target.role === role) {
+        return res.json({ success: true, role });
+      }
+
+      // Block self-demotion when this is the last admin
+      if (
+        targetUserId === req.userId &&
+        target.role === "admin" &&
+        role === "member"
+      ) {
+        const adminCount = await db.query(
+          `SELECT COUNT(*)::int AS c
+             FROM app.list_members
+            WHERE list_id = $1 AND status = 'admin'`,
+          [listId],
+        );
+        if (adminCount.rows[0].c <= 1) {
+          return res.status(400).json({
+            message: "לא ניתן להוריד את עצמך כשאתה המנהל היחיד ברשימה",
+          });
+        }
+      }
+
+      await db.query(
+        `UPDATE app.list_members SET status = $1
+          WHERE list_id = $2 AND user_id = $3`,
+        [role, listId, targetUserId],
+      );
+
+      return res.json({ success: true, role });
+    } catch (err) {
+      console.error("Error updating member role:", err);
+      return res.status(500).json({ message: "שגיאה בעדכון התפקיד" });
+    }
+  },
+);
+
+// DELETE /api/lists/:id/members/:userId — kick a member (admin only)
+app.delete(
+  "/api/lists/:id/members/:userId",
+  authenticateToken,
+  async (req, res) => {
+    const listId = req.params.id;
+    const targetUserId = parseInt(req.params.userId, 10);
+
+    if (targetUserId === req.userId) {
+      return res
+        .status(400)
+        .json({ message: "אינך יכול להסיר את עצמך — השתמש בעזיבת הרשימה" });
+    }
+
+    try {
+      const adminCheck = await db.query(
+        "SELECT status FROM app.list_members WHERE list_id = $1 AND user_id = $2",
+        [listId, req.userId],
+      );
+      if (
+        adminCheck.rows.length === 0 ||
+        adminCheck.rows[0].status !== "admin"
+      ) {
+        return res.status(403).json({ message: "רק מנהל יכול להסיר חברים" });
+      }
+
+      const targetRes = await db.query(
+        "SELECT id FROM app.list_members WHERE list_id = $1 AND user_id = $2",
+        [listId, targetUserId],
+      );
+      if (targetRes.rows.length === 0) {
+        return res.status(404).json({ message: "המשתמש אינו חבר ברשימה" });
+      }
+
+      await db.query(
+        "DELETE FROM app.list_members WHERE list_id = $1 AND user_id = $2",
+        [listId, targetUserId],
+      );
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("Error removing member:", err);
+      return res.status(500).json({ message: "שגיאה בהסרת חבר" });
+    }
+  },
+);
+
 // GET /api/lists/:id/compare — price comparison across chains
 app.get("/api/lists/:id/compare", authenticateToken, async (req, res) => {
   const listId = req.params.id;
@@ -993,8 +1122,8 @@ app.get("/api/lists/:id/compare", authenticateToken, async (req, res) => {
     // Get best price per product per chain
     const pricesRes = await db.query(
       `SELECT DISTINCT ON (c.id, p.item_id)
-              c.id AS chain_id, c.name AS chain_name,
-              p.item_id AS product_id, p.price
+       c.id AS chain_id, c.name AS chain_name,
+       p.item_id AS product_id, p.price
        FROM app.prices p
        JOIN app.branches b ON p.branch_id = b.id
        JOIN app.chains c ON b.chain_id = c.id
@@ -1088,10 +1217,62 @@ app.post("/api/lists/:id/invite", authenticateToken, async (req, res) => {
 
     const host =
       process.env.host_allowed?.split(",")[0] || "http://localhost:5173";
-    return res.json({ inviteLink: `${host}/invite/${inviteCode}` });
+    return res.json({ inviteLink: `${host}/join/${inviteCode}` });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Error creating invite" });
+  }
+});
+
+// POST /api/join/:inviteCode — accept an invite (parent accounts only)
+app.post("/api/join/:inviteCode", authenticateToken, async (req, res) => {
+  const { inviteCode } = req.params;
+  try {
+    const userCheck = await db.query(
+      "SELECT parent_id FROM app2.users WHERE id = $1",
+      [req.userId],
+    );
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (userCheck.rows[0].parent_id !== null) {
+      return res
+        .status(403)
+        .json({ message: "רק משתמשים הורים יכולים להצטרף לרשימה" });
+    }
+
+    const inviteRes = await db.query(
+      `SELECT i.list_id, l.list_name
+         FROM app.list_invites i
+         JOIN app.list l ON l.id = i.list_id
+        WHERE i.invite_code = $1
+          AND (i.expires_at IS NULL OR i.expires_at > NOW())`,
+      [inviteCode],
+    );
+    if (inviteRes.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "קישור ההזמנה אינו תקין או פג תוקף" });
+    }
+    const { list_id: listId, list_name: listName } = inviteRes.rows[0];
+
+    const existing = await db.query(
+      "SELECT status FROM app.list_members WHERE list_id = $1 AND user_id = $2",
+      [listId, req.userId],
+    );
+    if (existing.rows.length > 0) {
+      return res.json({ listId, listName, alreadyMember: true });
+    }
+
+    await db.query(
+      "INSERT INTO app.list_members (list_id, user_id, status) VALUES ($1, $2, 'member')",
+      [listId, req.userId],
+    );
+
+    return res.json({ listId, listName, alreadyMember: false });
+  } catch (err) {
+    console.error("Error joining list:", err);
+    return res.status(500).json({ message: "שגיאה בהצטרפות לרשימה" });
   }
 });
 
@@ -1234,7 +1415,7 @@ app.delete(
         [childId, req.userId],
       );
       if (child.rows.length === 0)
-        return res.status(403).json({ message: "Not your child" });
+        return res.status(403).json({ message: "no childrens" });
 
       await db.query(
         "DELETE FROM app.list_members WHERE list_id = $1 AND user_id = $2",
@@ -1248,191 +1429,7 @@ app.delete(
   },
 );
 
-// GET /api/templates — get user's templates
-app.get("/api/templates", authenticateToken, async (req, res) => {
-  try {
-    const result = await db.query(
-      `SELECT t.id, t.template_name, t.created_at,
-              COUNT(ti.id) AS item_count
-       FROM app.list_templates t
-       LEFT JOIN app.template_items ti ON ti.template_id = t.id
-       WHERE t.user_id = $1
-       GROUP BY t.id
-       ORDER BY t.created_at DESC`,
-      [req.userId],
-    );
-    return res.json({ templates: result.rows });
-  } catch (err) {
-    console.error("Error fetching templates:", err);
-    return res.status(500).json({ message: "Error fetching templates" });
-  }
-});
-
-// POST /api/templates — create template from list
-app.post("/api/templates", authenticateToken, async (req, res) => {
-  const { listId, templateName } = req.body;
-
-  if (!listId || !templateName) {
-    return res
-      .status(400)
-      .json({ message: "listId and templateName required" });
-  }
-
-  try {
-    // Verify user is admin of the list
-    const memberCheck = await db.query(
-      "SELECT status FROM app.list_members WHERE list_id = $1 AND user_id = $2",
-      [listId, req.userId],
-    );
-
-    if (
-      memberCheck.rows.length === 0 ||
-      memberCheck.rows[0].status !== "admin"
-    ) {
-      return res
-        .status(403)
-        .json({ message: "Only list admin can create templates" });
-    }
-
-    // Create template
-    const templateResult = await db.query(
-      "INSERT INTO app.list_templates (user_id, template_name, created_at) VALUES ($1, $2, NOW()) RETURNING id",
-      [req.userId, templateName],
-    );
-    const templateId = templateResult.rows[0].id;
-
-    // Copy items from list to template
-    const itemsRes = await db.query(
-      "SELECT itemName, quantity, note, product_id FROM app.list_items WHERE listId = $1 ORDER BY id",
-      [listId],
-    );
-
-    for (let i = 0; i < itemsRes.rows.length; i++) {
-      const item = itemsRes.rows[i];
-      await db.query(
-        `INSERT INTO app.template_items (template_id, item_name, quantity, note, sort_order, product_id)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          templateId,
-          item.itemname,
-          item.quantity || 1,
-          item.note,
-          i,
-          item.product_id || null,
-        ],
-      );
-    }
-
-    return res.json({ templateId, message: "Template created successfully" });
-  } catch (err) {
-    console.error("Error creating template:", err);
-    return res.status(500).json({ message: "Error creating template" });
-  }
-});
-
-// POST /api/templates/:id/apply — create list from template
-app.post("/api/templates/:id/apply", authenticateToken, async (req, res) => {
-  const templateId = req.params.id;
-  const { listName } = req.body;
-
-  try {
-    // Verify template belongs to user
-    const templateCheck = await db.query(
-      "SELECT id, template_name FROM app.list_templates WHERE id = $1 AND user_id = $2",
-      [templateId, req.userId],
-    );
-
-    if (templateCheck.rows.length === 0) {
-      return res.status(404).json({ message: "Template not found" });
-    }
-
-    const template = templateCheck.rows[0];
-    const newListName = listName || template.template_name;
-
-    // Create new list
-    const listResult = await db.query(
-      "INSERT INTO app.list (list_name) VALUES ($1) RETURNING id",
-      [newListName],
-    );
-    const newListId = listResult.rows[0].id;
-
-    // Add user as admin
-    await db.query(
-      "INSERT INTO app.list_members (list_id, user_id, status) VALUES ($1, $2, 'admin')",
-      [newListId, req.userId],
-    );
-
-    // Copy template items to new list
-    const items = await db.query(
-      "SELECT item_name, quantity, note, product_id FROM app.template_items WHERE template_id = $1 ORDER BY sort_order",
-      [templateId],
-    );
-
-    for (const item of items.rows) {
-      await db.query(
-        `INSERT INTO app.list_items (listId, itemName, quantity, note, addby, addat, updatedat, product_id)
-         VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), $6)`,
-        [
-          newListId,
-          item.item_name,
-          item.quantity || 1,
-          item.note,
-          req.userId,
-          item.product_id || null,
-        ],
-      );
-
-      // Increment points for template items
-      if (item.product_id) {
-        db.query(
-          `UPDATE app.items SET popularity_points = COALESCE(popularity_points, 0) + 1 WHERE id = $1`,
-          [item.product_id],
-        ).catch((e) =>
-          console.error("Error updating popularity from template:", e.message),
-        );
-      }
-    }
-
-    return res.json({
-      listId: newListId,
-      message: "List created from template",
-    });
-  } catch (err) {
-    console.error("Error applying template:", err);
-    return res
-      .status(500)
-      .json({ message: "Error creating list from template" });
-  }
-});
-
-// DELETE /api/templates/:id — delete template
-app.delete("/api/templates/:id", authenticateToken, async (req, res) => {
-  const templateId = req.params.id;
-
-  try {
-    // Verify template belongs to user
-    const templateCheck = await db.query(
-      "SELECT id FROM app.list_templates WHERE id = $1 AND user_id = $2",
-      [templateId, req.userId],
-    );
-
-    if (templateCheck.rows.length === 0) {
-      return res.status(404).json({ message: "Template not found" });
-    }
-
-    // Delete template (CASCADE will delete template_items)
-    await db.query("DELETE FROM app.list_templates WHERE id = $1", [
-      templateId,
-    ]);
-
-    return res.json({ success: true, message: "Template deleted" });
-  } catch (err) {
-    console.error("Error deleting template:", err);
-    return res.status(500).json({ message: "Error deleting template" });
-  }
-});
-
-// GET /api/kid-requests/pending — get pending requests for parent
+// GET /api/kid-requests/pending — get pending requests for every list this user admins
 app.get("/api/kid-requests/pending", authenticateToken, async (req, res) => {
   try {
     const result = await db.query(
@@ -1442,13 +1439,20 @@ app.get("/api/kid-requests/pending", authenticateToken, async (req, res) => {
         kr.price,
         kr.quantity,
         kr.product_id,
+        kr.list_id,
         kr.created_at,
         u.first_name as child_first_name,
         l.list_name
        FROM app2.kid_requests kr
        JOIN app2.users u ON u.id = kr.child_id
        JOIN app.list l ON l.id = kr.list_id
-       WHERE kr.parent_id = $1 AND kr.status = 'pending'
+       WHERE kr.status = 'pending'
+         AND EXISTS (
+           SELECT 1 FROM app.list_members lm
+            WHERE lm.list_id = kr.list_id
+              AND lm.user_id = $1
+              AND lm.status = 'admin'
+         )
        ORDER BY kr.created_at DESC`,
       [req.userId],
     );
@@ -1523,9 +1527,14 @@ app.post("/api/kid-requests", authenticateToken, async (req, res) => {
       ],
     );
 
-    // Emit real-time notification to parent
+    // Emit real-time notification to every admin of the target list
     const requestId = result.rows[0].id;
-    io.to(`user_${parentId}`).emit("new_kid_request", {
+    const adminsRes = await db.query(
+      `SELECT user_id FROM app.list_members
+        WHERE list_id = $1 AND status = 'admin'`,
+      [listId],
+    );
+    const payload = {
       id: requestId,
       requestId: requestId,
       childName: childName,
@@ -1534,11 +1543,15 @@ app.post("/api/kid-requests", authenticateToken, async (req, res) => {
       item_name: itemName,
       listName: listName,
       list_name: listName,
+      list_id: parseInt(listId, 10),
       quantity: quantity || 1,
       price: price,
       productId: productId,
       product_id: productId,
-    });
+    };
+    for (const row of adminsRes.rows) {
+      io.to(`user_${row.user_id}`).emit("new_kid_request", payload);
+    }
 
     return res.status(201).json({ message: "Request sent" });
   } catch (err) {
@@ -1560,27 +1573,45 @@ app.post(
     }
 
     try {
-      // Get the request and verify it belongs to this parent
+      // Fetch the request first to know which list it belongs to
       const requestResult = await db.query(
         `SELECT kr.*, u.first_name as child_first_name
        FROM app2.kid_requests kr
        JOIN app2.users u ON u.id = kr.child_id
-       WHERE kr.id = $1 AND kr.parent_id = $2`,
-        [requestId, req.userId],
+       WHERE kr.id = $1`,
+        [requestId],
       );
 
       if (requestResult.rows.length === 0) {
-        return res.status(403).json({ message: "Not your child's request" });
+        return res.status(404).json({ message: "הבקשה לא נמצאה" });
       }
 
       const request = requestResult.rows[0];
-      const newStatus = action === "approve" ? "approved" : "rejected";
 
-      // Update request status
-      await db.query("UPDATE app2.kid_requests SET status = $1 WHERE id = $2", [
-        newStatus,
-        requestId,
-      ]);
+      // Caller must be admin of the list the request targets
+      const adminCheck = await db.query(
+        `SELECT 1 FROM app.list_members
+          WHERE list_id = $1 AND user_id = $2 AND status = 'admin'`,
+        [request.list_id, req.userId],
+      );
+      if (adminCheck.rows.length === 0) {
+        return res
+          .status(403)
+          .json({ message: "רק מנהל הרשימה יכול לאשר/לדחות בקשות" });
+      }
+
+      // Race-safe: only resolve if still pending
+      const newStatus = action === "approve" ? "approved" : "rejected";
+      const updateRes = await db.query(
+        `UPDATE app2.kid_requests
+            SET status = $1
+          WHERE id = $2 AND status = 'pending'
+        RETURNING id`,
+        [newStatus, requestId],
+      );
+      if (updateRes.rows.length === 0) {
+        return res.status(409).json({ message: "הבקשה כבר טופלה" });
+      }
 
       // If approved, add the item to the list
       if (action === "approve") {
@@ -1618,6 +1649,19 @@ app.post(
         requestId: requestId,
         status: newStatus,
       });
+
+      // Notify every admin of the list so each bell drops the resolved request
+      const listAdminsRes = await db.query(
+        `SELECT user_id FROM app.list_members
+          WHERE list_id = $1 AND status = 'admin'`,
+        [request.list_id],
+      );
+      for (const row of listAdminsRes.rows) {
+        io.to(`user_${row.user_id}`).emit("kid_request_resolved", {
+          requestId: requestId,
+          status: newStatus,
+        });
+      }
 
       return res.json({
         success: true,
@@ -1714,8 +1758,18 @@ io.on("connection", (socket) => {
 
 
   socket.on("delete_item", async (data) => {
-    const { itemId, listId } = data;
+    const { itemId, listId, userId } = data;
     try {
+      if (userId) {
+        const userCheck = await db.query(
+          "SELECT parent_id FROM app2.users WHERE id = $1",
+          [userId],
+        );
+        if (userCheck.rows.length === 0 || userCheck.rows[0].parent_id !== null) {
+          return;
+        }
+      }
+
       await db.query("DELETE FROM app.list_items WHERE id = $1", [itemId]);
       io.to(String(listId)).emit("item_deleted", { itemId });
     } catch (err) {
@@ -1766,6 +1820,14 @@ io.on("connection", (socket) => {
   socket.on("update_note", async (data) => {
     const { itemId, listId, note, userId } = data;
     try {
+      const userCheck = await db.query(
+        "SELECT parent_id FROM app2.users WHERE id = $1",
+        [userId],
+      );
+      if (userCheck.rows.length === 0 || userCheck.rows[0].parent_id !== null) {
+        return;
+      }
+
       await db.query(
         "UPDATE app.list_items SET note = $1, note_by = $2 WHERE id = $3",
         [note || null, userId, itemId],
@@ -1848,54 +1910,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // DELETE ITEM
-  socket.on("delete_item", async (data) => {
-    const { itemId, listId } = data;
-    try {
-      await db.query("DELETE FROM app.list_items WHERE id = $1", [itemId]);
-      io.to(listId).emit("item_deleted", { itemId });
-    } catch (err) {
-      console.error("Error deleting item:", err);
-    }
-  });
-
-  // MARK PAID
-  socket.on("mark_paid", async (data) => {
-    const { itemId, listId, userId } = data;
-    try {
-      await db.query("UPDATE app.list_items SET paid_by = $1 WHERE id = $2", [
-        userId,
-        itemId,
-      ]);
-      const userRes = await db.query(
-        "SELECT first_name FROM app2.users WHERE id = $1",
-        [userId],
-      );
-      const userName = userRes.rows[0]?.first_name || "User";
-
-      io.to(listId).emit("item_paid", {
-        itemId,
-        paidBy: userId,
-        paidByName: userName,
-      });
-    } catch (err) {
-      console.error("Error marking paid:", err);
-    }
-  });
-
-  // UNMARK PAID
-  socket.on("unmark_paid", async (data) => {
-    const { itemId, listId } = data;
-    try {
-      await db.query("UPDATE app.list_items SET paid_by = NULL WHERE id = $1", [
-        itemId,
-      ]);
-      io.to(listId).emit("item_paid_status", { itemId, paidBy: null });
-    } catch (err) {
-      console.error("Error unmarking paid:", err);
-    }
-  });
-
   // ADD COMMENT
   socket.on("add_comment", async (data) => {
     const { itemId, listId, userId, comment } = data;
@@ -1939,6 +1953,59 @@ io.on("connection", (socket) => {
       });
     } catch (err) {
       console.error("Error adding comment:", err);
+    }
+  });
+
+  // UPDATE COMMENT (only the author can edit)
+  socket.on("update_comment", async (data) => {
+    const { commentId, itemId, listId, userId, comment } = data;
+    try {
+      const existing = await db.query(
+        `SELECT user_id FROM app.list_item_comments WHERE id = $1`,
+        [commentId],
+      );
+      if (existing.rows.length === 0 || existing.rows[0].user_id !== userId) {
+        return;
+      }
+
+      await db.query(
+        `UPDATE app.list_item_comments SET comment = $1 WHERE id = $2`,
+        [comment, commentId],
+      );
+
+      io.to(String(listId)).emit("comment_updated", {
+        itemId,
+        commentId,
+        comment,
+      });
+    } catch (err) {
+      console.error("Error updating comment:", err);
+    }
+  });
+
+  // DELETE COMMENT (only the author can delete)
+  socket.on("delete_comment", async (data) => {
+    const { commentId, itemId, listId, userId } = data;
+    try {
+      const existing = await db.query(
+        `SELECT user_id FROM app.list_item_comments WHERE id = $1`,
+        [commentId],
+      );
+      if (existing.rows.length === 0 || existing.rows[0].user_id !== userId) {
+        return;
+      }
+
+      await db.query(
+        `DELETE FROM app.list_item_comments WHERE id = $1`,
+        [commentId],
+      );
+
+      io.to(String(listId)).emit("comment_deleted", {
+        itemId,
+        commentId,
+      });
+    } catch (err) {
+      console.error("Error deleting comment:", err);
     }
   });
 });

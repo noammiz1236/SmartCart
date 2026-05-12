@@ -24,8 +24,18 @@ const NotificationBell = () => {
     const onNewRequest = (req) => {
       setRequests((prev) => [req, ...prev]);
     };
+    const onResolved = (data) => {
+      const resolvedId = data.requestId;
+      setRequests((prev) =>
+        prev.filter((r) => (r.id ?? r.requestId) !== resolvedId),
+      );
+    };
     socket.on("new_kid_request", onNewRequest);
-    return () => socket.off("new_kid_request", onNewRequest);
+    socket.on("kid_request_resolved", onResolved);
+    return () => {
+      socket.off("new_kid_request", onNewRequest);
+      socket.off("kid_request_resolved", onResolved);
+    };
   }, []);
 
   // Close panel on outside click
@@ -42,9 +52,19 @@ const NotificationBell = () => {
   const handleResolve = async (requestId, action) => {
     try {
       await api.post(`/api/kid-requests/${requestId}/resolve`, { action });
-      setRequests((prev) => prev.filter((r) => r.id !== requestId && r.requestId !== requestId));
+      setRequests((prev) =>
+        prev.filter((r) => (r.id ?? r.requestId) !== requestId),
+      );
     } catch (err) {
-      console.error(err);
+      if (err.response?.status === 409) {
+        // Another admin already handled it — drop from list and inform briefly
+        setRequests((prev) =>
+          prev.filter((r) => (r.id ?? r.requestId) !== requestId),
+        );
+        alert(err.response.data?.message || "הבקשה כבר טופלה");
+      } else {
+        console.error(err);
+      }
     }
   };
 

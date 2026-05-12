@@ -164,7 +164,7 @@ const FamilySettings = () => {
                   <div>
                     <span className="fw-semibold">{child.first_name}</span>
                     <br />
-                    <small style={{ color: "var(--sc-text-muted)" }}>@{child.username}</small>
+                    <small style={{ color: "var(--sc-text-muted)" }}>{child.username}</small>
                   </div>
                   <button
                     className="sc-icon-btn sc-icon-btn-danger"

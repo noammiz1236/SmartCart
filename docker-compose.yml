@@ -6,9 +6,9 @@ services:
     ports:
       - "15432:5432"
     environment:
-      POSTGRES_USER: smartcart
-      POSTGRES_PASSWORD: smartcart123
-      POSTGRES_DB: smartcart
+      POSTGRES_USER: 
+      POSTGRES_PASSWORD: 
+      POSTGRES_DB: 
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./server/database_schema.sql:/docker-entrypoint-initdb.d/
@@ -25,8 +25,8 @@ services:
     ports:
       - "8080:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@smartcart.co.il
-      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_DEFAULT_EMAIL: 
+      PGADMIN_DEFAULT_PASSWORD: 
       PGADMIN_CONFIG_SERVER_MODE: "False"
     volumes:
       - pgadmin_data:/var/lib/pgadmin

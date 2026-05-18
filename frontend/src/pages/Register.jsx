@@ -32,7 +32,7 @@ const Register = () => {
 
     setLoading(true);
     try {
-      await axios.post("http://localhost:3000/api/register", formData);
+      await axios.post("http://localhost:8000/api/register", formData);
       navigate("/login");
     } catch (err) {
       setError(err.response?.data?.message || "ההרשמה נכשלה. נסה שוב.");

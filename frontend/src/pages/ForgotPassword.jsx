@@ -21,7 +21,7 @@ function ForgotPassword() {
 
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:3000/api/forgot-password", { email });
+      const response = await axios.post("http://localhost:8000/api/forgot-password", { email });
       setMessage(response.data.message);
     } catch (err) {
       setError(err.response?.data?.message || "שגיאה בשליחת הבקשה");

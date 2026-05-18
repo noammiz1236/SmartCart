@@ -61,6 +61,7 @@ CREATE TABLE app.items (
   category VARCHAR(100),
   unit_qty VARCHAR(50),
   is_weighted BOOLEAN DEFAULT FALSE,
+  popularity_points INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(item_code, manufacturer, is_weighted)

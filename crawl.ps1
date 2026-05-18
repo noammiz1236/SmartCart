@@ -1,8 +1,8 @@
 # Supermarket Price Crawler + Database Import - PowerShell Version
 $ErrorActionPreference = "Stop"
 
-$PROJECT_DIR = "C:\Users\rdiol\.openclaw\workspace\ProjGmar"
-$TARGET_DIR = "$PROJECT_DIR\server\my_prices"
+$PROJECT_DIR = "a:\vs code\fullstack\as\SmartCart"
+$TARGET_DIR = "$PROJECT_DIR\my_prices"
 $SERVER_DIR = "$PROJECT_DIR\server"
 
 Write-Host "=== Starting Supermarket Data Update Process ===" -ForegroundColor Cyan
@@ -31,7 +31,7 @@ Write-Host "[3/4] Crawler completed! Files downloaded to: $TARGET_DIR" -Foregrou
 # Step 3: Import to database
 Write-Host "[4/4] Importing prices to database..." -ForegroundColor Yellow
 Set-Location $SERVER_DIR
-node import-prices.js
+node db/run-parser.js
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Database import failed with exit code: $LASTEXITCODE"

@@ -197,7 +197,7 @@ export async function parsePriceFile(xmlPath, branchId) {
         rawStream.pause();
         try {
           const itemCode = getField(item, "ItemCode", "ITEMCODE");
-          const itemName = getField(item, "ItemName", "ITEMNAME");
+          const itemName = getField(item, "ItemName", "ITEMNAME", "ItemNm", "ITEMNM");
           const priceVal = item.ItemPrice || item.ITEMPRICE || item.itemPrice;
           const price = parseFloat(typeof priceVal === "string" ? priceVal : getText(priceVal));
           const manufacturer = getField(item, "ManufacturerName", "MANUFACTURERNAME") || "לא ידוע";
